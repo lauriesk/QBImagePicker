@@ -63,12 +63,12 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
 @property (nonatomic, strong) PHCachingImageManager *imageManager;
 @property (nonatomic, assign) CGRect previousPreheatRect;
 
-@property (nonatomic, assign) BOOL disableScrollToBottom;
 @property (nonatomic, strong) NSIndexPath *lastSelectedItemIndexPath;
 
 @end
 
 @implementation QBAssetsViewController
+BOOL _firstLayoutDone;
 
 - (void)viewDidLoad
 {
@@ -79,6 +79,7 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
     
     // Register observer
     [[PHPhotoLibrary sharedPhotoLibrary] registerChangeObserver:self];
+    _firstLayoutDone = NO;
 }
 
 - (void)viewWillAppear:(BOOL)animated
@@ -102,32 +103,26 @@ static CGSize CGSizeScale(CGSize size, CGFloat scale) {
     [self updateDoneButtonState];
     [self updateSelectionInfo];
     [self.collectionView reloadData];
-    
-    // Scroll to bottom
-    if (self.fetchResult.count > 0 && self.isMovingToParentViewController && !self.disableScrollToBottom) {
-        // when presenting as a .FormSheet on iPad, the frame is not correct until just after viewWillAppear:
-        // dispatching to the main thread waits one run loop until the frame is update and the layout is complete
-        dispatch_async(dispatch_get_main_queue(), ^{
-            NSIndexPath *indexPath = [NSIndexPath indexPathForItem:(self.fetchResult.count - 1) inSection:0];
-            [self.collectionView scrollToItemAtIndexPath:indexPath atScrollPosition:UICollectionViewScrollPositionTop animated:NO];
-        });
-    }
-}
-
-- (void)viewWillDisappear:(BOOL)animated
-{
-    [super viewWillDisappear:animated];
-    
-    self.disableScrollToBottom = YES;
 }
 
 - (void)viewDidAppear:(BOOL)animated
 {
     [super viewDidAppear:animated];
-    
-    self.disableScrollToBottom = NO;
-    
     [self updateCachedAssets];
+}
+
+- (void)viewDidLayoutSubviews
+{
+    if (!_firstLayoutDone)
+    {
+        _firstLayoutDone = YES;
+        
+        // Scroll to bottom
+        if (self.fetchResult.count > 0) {
+            NSIndexPath *indexPath = [NSIndexPath indexPathForItem:(self.fetchResult.count - 1) inSection:0];
+            [self.collectionView scrollToItemAtIndexPath:indexPath atScrollPosition:UICollectionViewScrollPositionTop animated:NO];
+        }
+    }
 }
 
 - (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator
